@@ -61,8 +61,8 @@ ball = {
     y: 50,
     r: 5,
     c: "#ffffff",
-    vx: 4,
-    vy: 8,
+    vx: 9,
+    vy: 4,
     
     draw: function() {
         ctx.beginPath();
@@ -91,6 +91,13 @@ startBtn = {
         ctx.textBaseline = "middle"; 
         ctx.fillStyle = "#ffffff";
         ctx.fillText("Start", W/2, H/2);
+        
+        // Display Instructions
+        ctx.fillStyle = "#ffffff"
+        ctx.font = "16px Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Move the mouse to move the paddles. Keep the ball from hitting the left or right.", W/2, H/2 + 60);
     }
 }
 startBtn.draw();
@@ -102,36 +109,39 @@ function paintScore () {
     ctx.font = "18px Arial, sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText("Score: " + points, 20, 20);
+    ctx.fillText("Score: " + points, W/2, 20);
 }
 paintScore();
 
 // Step 06 .. cnw .. Place paddles (top and bottom) on canvas
 function paddlePosition(TB) {
-    this.w = 150;
-    this.h = 5; 
+    this.w = 8;
+    this.h = 150;
     
-    this.x = W/2 - this.w/2;
+    this.y = H/2 - this.h/2;
     
-    if (TB == "top") {
-        this.y = 0;
+    if (TB == "left") {
+        this.x = 0;
     }  else {
-        this.y = H - this.h;  
+        this.x = W - this.w;  
         }
 }
 
 var paddlesArray = []; // Paddles Array
-paddlesArray.push(new paddlePosition("top"));
-paddlesArray.push(new paddlePosition("bottom"));
+paddlesArray.push(new paddlePosition("left"));
+paddlesArray.push(new paddlePosition("right"));
 //console.log("top paddle y is: " + paddlesArray[0].y);
 //console.log("bottom paddle y is: " + paddlesArray[1].y);
 
 function paintPaddles() {
     for (var lp = 0; lp < paddlesArray.length; lp++) {
-        p = paddlesArray[lp];
+        u = paddlesArray[0];
+        d = paddlesArray[1];
         
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.fillStyle = "#fe5cb2";
+        ctx.fillRect(u.x, u.y, u.w, u.h);
+        ctx.fillStyle = "#52d5da";
+        ctx.fillRect(d.x, d.y, d.w, d.h);
     }
 }
 paintPaddles();
@@ -193,7 +203,7 @@ function update () {
     // move the paddles, track the mouse
     for (var lp = 0; lp < paddlesArray.length; lp++) {
         p = paddlesArray[lp];
-        p.x = mouseObj.x - p.w / 2;
+        p.y = mouseObj.y - p.h / 2;
         
     }
     // move the ball
@@ -213,20 +223,20 @@ function check4collision() {
         collideAction(ball, pBot);
     } else {
         // collide with walls, or end game
-        if (ball.y + ball.r > H) {
+        if (ball.x + ball.r > W) {
             // Game over
             gameOver();
-        } else if (ball.y < 0) {
+        } else if (ball.x < 0) {
             // Game over
             gameOver();
         }
         // Ball hits the side of screen
-        if (ball.x + ball.r > W) {
-            ball.vx = -ball.vx;
-            ball.x = W - ball.r;
-        } else if (ball.x - ball.r < 0) {
-            ball.vx = -ball.vx;
-            ball.x = ball.r;
+        if (ball.y + ball.r > H) {
+            ball.vy = -ball.vy;
+            ball.y = H - ball.r;
+        } else if (ball.y - ball.r < 0) {
+            ball.vy = -ball.vy;
+            ball.y = ball.r;
         }
     }
     // SPARKLES
@@ -270,11 +280,11 @@ function emitParticles() {
 
 var paddleHit; // Which paddle was hit 0=top, 1=bottom
 function collides(b, p) {
-    if (b.x + b.r >= p.x && b.x - b.r <= p.x + p.w) {
-        if (b.y >= (p.y - p.h) && p.y > 0) {
+    if (b.y + b.r >= p.y && b.y - b.r <= p.y + p.h) {
+        if (b.x >= (p.x - p.w) && p.x > 0) {
             paddleHit = 0;
             return true;
-        } else if (b.y <= p.h && p.y === 0) {
+        } else if (b.x <= p.w && p.x === 0) {
             paddleHit = 1;
             return true;
         } else {
@@ -290,18 +300,18 @@ function collideAction (b, p) {
     if (collisionSnd) {
           collisionSnd.play();  
     }
-    // reverse ball y velocity
-    ball.vy = - ball.vy;
+    // reverse ball x velocity
+    ball.vx = - ball.vx;
     
     if(paddleHit == 0) {  
         // ball hit top paddle
-        ball.y = p.y - p.h;
-        particlePos.y = ball.y + ball.r;
+        ball.x = p.x - p.w;
+        particlePos.x = ball.x + ball.r;
         particleDir = -1;
     } else if (paddleHit == 1) {
         // ball hit bottom paddle
-         ball.y = p.h + ball.r; 
-        particlePos.y = ball.y - ball.r;
+         ball.x = p.w + ball.r; 
+        particlePos.x = ball.x - ball.r;
         particleDir = 1;
     }
     // increase the score by 1
@@ -310,8 +320,10 @@ function collideAction (b, p) {
     increaseSpd();
     
     // SPARKLES
-    particlePos.x = ball.x;
+    particlePos.y = ball.y;
     flagCollision = 1;
+    
+    paddleHeight();
 }
 
 // SPARKLES
@@ -327,11 +339,20 @@ var particleCount = 20; // number of sparks when the ball hits the paddle
 function increaseSpd() {
     // increase ball speed after every 4 points, cant go faster than 14 pixels per second
     if (points % 4 === 0) {
-        if(Math.abs(ball.vx) < 15) {
+        if(Math.abs(ball.vy) < 15) {
         ball.vx += (ball.vx < 0) ? -1 : 1;
         ball.vy += (ball.vy < 0) ? -2 : 2;
         }
     }
+}
+function paddleHeight() {
+    // decrease paddle height by 5 pixels every 4 points
+     if (points % 4 === 0) {
+         for (var len = 0; len < paddlesArray.length; len++) {
+             g = paddlesArray[len];
+             g.h = g.h - 5;
+         }
+     }
 }
 
 var flagGameOver = 0; 
